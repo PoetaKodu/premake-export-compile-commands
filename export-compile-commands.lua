@@ -21,10 +21,33 @@ function m.getIncludeDirs(cfg)
   return flags
 end
 
+local function parseDefinition(def)
+  local p = string.find(def, ".*_PCH=\"include/.*PCH.hpp\"")
+    if p ~= nil then
+      local essentialPart = string.match(def, "\"include/(.+)\"")
+      if essentialPart ~= nil then
+        local defStart = string.find(def, "=\"include/.+\"")
+        if defStart ~= nil then
+          local transformed = string.format("%s<%s>", string.sub(def, 0, defStart), essentialPart)
+          -- printf("Changed PCH def \"%s\" to \"%s\"", def, transformed)
+          return transformed
+        end
+      end
+    end
+  return def
+end
+
 function m.getCommonFlags(cfg)
   local toolset = m.getToolset(cfg)
   local flags = toolset.getcppflags(cfg)
-  flags = table.join(flags, toolset.getdefines(cfg.defines))
+  
+  local defines = toolset.getdefines(cfg.defines)
+  local parsedDefines = {};
+  for key, value in pairs(defines) do
+    parsedDefines[key] = parseDefinition(value)
+  end
+
+  flags = table.join(flags, parsedDefines)
   flags = table.join(flags, toolset.getundefines(cfg.undefines))
   -- can't use toolset.getincludedirs because some tools that consume
   -- compile_commands.json have problems with relative include paths
